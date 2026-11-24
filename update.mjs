@@ -7,7 +7,7 @@ const TEAM = "TOR";
 const SEASON = "20262027";
 const SEASON_START = "2026-09-29";
 const API = "https://api-web.nhle.com/v1";
-const DATA_FILE = new URL("../data.json", import.meta.url);
+const DATA_FILE = new URL("./data.json", import.meta.url);
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 async function get(path, tries = 3) {

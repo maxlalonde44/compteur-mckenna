@@ -1,0 +1,9 @@
+# Netlify publie le dossier tel quel, sans etape de construction.
+[build]
+  publish = "."
+  command = ""
+
+[[headers]]
+  for = "/data.json"
+  [headers.values]
+    Cache-Control = "no-cache"

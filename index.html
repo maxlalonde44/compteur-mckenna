@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="fr-CA">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Le compteur McKenna</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Barlow:wght@400;600;700&family=Teko:wght@500;600&display=swap" rel="stylesheet">
+<style>
+/* VOICE: taquin, ton de chronique sportive, on rit mais les faits sont exacts
+   IDEA: l'affiche « X jours sans accident » d'un chantier, version tableau d'aréna
+   PICTURE: grand panneau de chantier avec chiffres LED, photo et logo dans des cadres
+   COLOUR and TYPE: bleu profond plein, blanc, rouge LED d'aréna; Anton + Teko (chiffres) + Barlow
+   LAYOUT: panneau en tête, commandes dessous, puis fil « Pendant ce temps-là » qui s'enclenche */
+:root{color-scheme:light dark;--bg:light-dark(#0b2a6b,#061634);--panel:light-dark(#ffffff,#0e1f45);--ink:light-dark(#0b1b3d,#eef3ff);--on:#fff;--led:#ff3b2f;--yel:#ffd400;--mute:light-dark(#5a6788,#9fb0d6);--line:light-dark(#d9e0ef,#24376a)}
+:root{--fh:Anton,Impact,sans-serif;--fd:Teko,monospace;--fb:Barlow,system-ui,sans-serif}
+:root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:var(--bg);color:var(--on);font:16px/1.55 var(--fb);overflow-x:clip}
+.band{padding:clamp(24px,4vw,56px) max(5vw,16px)}
+.wrap{max-width:1180px;margin:0 auto}
+h1{font:400 clamp(34px,6vw,58px)/1.02 var(--fh);margin:0 0 6px;text-wrap:balance}
+.sub{margin:0;color:#c9d6f5;max-width:62ch}
+/* panneau */
+.sign{margin-top:22px;background:var(--yel);border-radius:18px;padding:12px;box-shadow:0 18px 40px rgba(0,0,0,.35)}
+.stripes{height:16px;border-radius:8px 8px 0 0;background:repeating-linear-gradient(135deg,#111 0 18px,var(--yel) 18px 36px)}
+.inner{background:var(--panel);color:var(--ink);border-radius:0 0 10px 10px;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.5fr) minmax(0,1fr);gap:18px;padding:20px;align-items:center}
+.slot{margin:0;aspect-ratio:3/4;border:0;box-shadow:0 6px 16px rgba(0,0,0,.25);border-radius:12px;display:grid;place-items:center;text-align:center;cursor:pointer;overflow:hidden;position:relative;background:light-dark(#f2f5fb,#0a1736);color:var(--mute);font-weight:600;padding:10px}
+.slot img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.slot.logo img{object-fit:contain;padding:4px}
+.slot:focus-within,.slot:hover{border-color:var(--led)}
+.slot input{position:absolute;inset:0;opacity:0;cursor:pointer}
+.slot small{display:block;font-weight:400;font-size:13px}
+.board{text-align:center}
+.board .k{font:400 clamp(18px,2.4vw,26px)/1.1 var(--fh);text-transform:uppercase;letter-spacing:.02em}
+.led{display:inline-block;background:#0a0a0a;color:var(--led);font:600 clamp(72px,13vw,150px)/.9 var(--fd);padding:10px 26px 0;border-radius:12px;margin:10px 0;text-shadow:0 0 18px rgba(255,59,47,.7);box-shadow:inset 0 0 0 4px #222}
+.zero{color:var(--led)}
+.stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:14px}
+.stat{background:light-dark(#eef2fa,#0a1736);border-radius:10px;padding:10px 6px}
+.stat b{display:block;font:600 clamp(28px,4vw,40px)/1 var(--fd);color:var(--ink)}
+.stat span{font-size:13px;color:var(--mute)}
+.clock{margin-top:16px;font:600 clamp(22px,3vw,30px)/1 var(--fd);color:var(--ink);white-space:nowrap}
+.clock small{display:block;font:400 13px var(--fb);color:var(--mute);white-space:normal;margin-top:4px}
+.side{display:grid;gap:14px}
+.idrow{display:grid;grid-template-columns:72px minmax(0,1fr);gap:10px;align-items:center}
+.slot.logo{aspect-ratio:1;padding:4px;box-shadow:none;background:transparent}
+.idrow .num{font-size:clamp(32px,4vw,44px);text-align:start}
+.top{background:light-dark(#eef2fa,#0a1736);border-radius:12px;padding:12px}
+.toph{font:400 18px/1.1 var(--fh);color:var(--ink)}
+.toph span{display:block;font:600 12px/1.3 var(--fb);color:var(--mute);margin-top:3px}
+.top ol{list-style:none;margin:8px 0 0;padding:0;counter-reset:r}
+.top li{display:grid;grid-template-columns:20px minmax(0,1fr) auto;column-gap:6px;padding:5px 0;border-top:1px solid var(--line);counter-increment:r}
+.top li::before{content:counter(r);grid-row:span 2;font:600 18px/1.2 var(--fd);color:var(--mute)}
+.top li b{font-size:14px;line-height:1.2}
+.top li em{grid-column:2;font-style:normal;font-size:12px;color:var(--mute);line-height:1.25}
+.top li i{grid-row:1/span 2;grid-column:3;font:600 28px/1 var(--fd);font-style:normal;align-self:center;color:var(--ink)}
+.top li.me{counter-increment:none}
+.top li.me::before{content:"—"}
+.top li.me i{color:var(--led)}
+.num{font:400 clamp(44px,6vw,72px)/1 var(--fh);color:var(--ink);text-align:center}
+.num span{display:block;font:600 13px var(--fb);color:var(--mute)}
+/* commandes */
+.ctrl{display:flex;flex-wrap:wrap;gap:10px;margin-top:18px}
+button{font:700 16px var(--fb);min-height:44px;padding:0 18px;border-radius:10px;border:2px solid #fff;background:transparent;color:#fff;cursor:pointer}
+button:hover{background:rgba(255,255,255,.12)}
+button:focus-visible,input:focus-visible{outline:3px solid var(--yel);outline-offset:2px}
+button.hit{background:var(--led);border-color:var(--led)}
+button.hit:hover{filter:brightness(1.1)}
+button.ghost{border-color:rgba(255,255,255,.4);font-weight:600}
+.confirm{display:none;align-items:center;gap:10px;flex-wrap:wrap;background:rgba(0,0,0,.25);padding:10px 14px;border-radius:10px}
+.confirm.on{display:flex}
+/* fil */
+h2{font:400 clamp(28px,4.4vw,44px)/1.05 var(--fh);margin:0 0 4px}
+.feed{list-style:none;margin:22px 0 0;padding:0 0 0 28px;position:relative}
+.feed::before{content:"";position:absolute;left:9px;top:6px;bottom:6px;width:4px;background:rgba(255,255,255,.25);border-radius:2px}
+.ev{position:relative;background:var(--panel);color:var(--ink);border-radius:12px;padding:14px 16px 14px 18px;margin-bottom:14px;opacity:0;transform:translateX(-14px) scale(.98);transition:opacity .45s,transform .45s}
+.ev.in{opacity:1;transform:none}
+.ev::before{content:"";position:absolute;left:-26px;top:18px;width:14px;height:14px;border-radius:50%;background:var(--yel);box-shadow:0 0 0 4px var(--bg)}
+.ev.mck::before{background:var(--led)}
+.ev .d{font:600 20px/1 var(--fd);color:var(--mute);white-space:nowrap}
+.ev p{margin:4px 0 8px;font-size:17px}
+.ev .tag{display:inline-block;font:600 13px var(--fb);background:light-dark(#ffe9e7,#3a1210);color:light-dark(#b3170d,#ff8a80);padding:3px 9px;border-radius:999px}
+.ev .del{float:right;min-height:32px;padding:0 10px;border:1px solid var(--line);color:var(--mute);font-size:13px;margin-left:8px}
+.add{display:grid;grid-template-columns:minmax(0,170px) minmax(0,1fr) auto;gap:10px;margin-top:20px;background:rgba(0,0,0,.2);padding:14px;border-radius:12px}
+.add input{font:16px var(--fb);min-height:44px;padding:0 12px;border-radius:8px;border:0;background:#fff;color:#0b1b3d}
+.topbar{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:10px;margin-bottom:12px}
+.lang{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+.lang button{min-height:40px;padding:0 14px;font-size:15px;border-color:rgba(255,255,255,.45)}
+.lang button[aria-pressed=true]{background:#fff;color:#0b2a6b;border-color:#fff}
+/* paris */
+.bets{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-top:18px}
+.bet{background:var(--panel);color:var(--ink);border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:8px;border:3px solid transparent}
+.bet.mine{border-color:var(--yel)}
+.bet.lead .bar i{background:linear-gradient(90deg,var(--led),#ff7a3d)}
+.bet.lead .cnt{color:var(--led)}
+.bet .g{font:600 18px/1 var(--fd);color:var(--mute);white-space:nowrap}
+.bet h3{margin:0;font:400 26px/1.05 var(--fh)}
+.bet .meta{font-size:14px;color:var(--mute)}
+.bar{height:10px;border-radius:5px;background:light-dark(#e4e9f4,#1b2c56);overflow:hidden}
+.bar i{display:block;height:100%;background:var(--led);width:0;transition:width .5s}
+.bet .cnt{font:600 24px/1 var(--fd)}
+.who{display:flex;flex-wrap:wrap;gap:4px;min-height:28px}
+.who img{width:28px;height:28px;border-radius:50%;object-fit:cover}
+.bet button{margin-top:auto;border-color:var(--ink);color:var(--ink)}
+.bet button:hover{background:light-dark(#eef2fa,#16264d)}
+.bet.mine button{background:var(--yel);border-color:var(--yel);color:#111}
+.cta{margin-top:18px;text-align:center}
+.pollbtn{display:inline-flex;align-items:center;min-height:52px;padding:0 28px;border-radius:12px;background:var(--led);color:#fff;font:400 22px/1 var(--fh);text-decoration:none;box-shadow:0 0 18px rgba(255,59,47,.5)}
+a.pollbtn:hover{filter:brightness(1.1)}
+a.pollbtn:focus-visible{outline:3px solid var(--yel);outline-offset:3px}
+.status{font-size:14px;color:#c9d6f5;margin-top:10px;min-height:22px}
+@media(max-width:820px){.bets{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:420px){.bets{grid-template-columns:minmax(0,1fr)}}
+.note{font-size:13px;color:#b8c7ea;margin-top:28px}
+.note a{color:#fff}
+@media(max-width:820px){.inner{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.board{grid-column:1/-1;order:-1}}
+@media(max-width:600px){.add{grid-template-columns:minmax(0,1fr)}.stats{grid-template-columns:repeat(3,minmax(0,1fr))}.led{padding:8px 18px 0}}
+/* vidéo d'intro */
+.hero{position:relative;background:#000;line-height:0;overflow:hidden}
+.hero video{display:block;width:100%;height:auto;max-height:78vh;aspect-ratio:16/9;object-fit:cover;margin:0 auto}
+.hero::after{content:"";position:absolute;inset:auto 0 0 0;height:30%;background:linear-gradient(180deg,transparent,#06102a);pointer-events:none}
+.sound{position:absolute;z-index:2;left:50%;bottom:clamp(16px,4vw,36px);transform:translateX(-50%);display:inline-flex;align-items:center;gap:10px;line-height:1;
+ min-height:52px;padding:0 22px;border-radius:999px;border:2px solid #fff;background:rgba(255,59,47,.92);color:#fff;font:400 20px/1 var(--fh);box-shadow:0 0 22px rgba(255,59,47,.6)}
+.sound:hover{background:#ff3b2f}
+.sound svg{width:24px;height:24px}
+.sound .wave{display:none}.sound[aria-pressed=true] .wave{display:inline}.sound[aria-pressed=true] .mute{display:none}
+.sound[aria-pressed=true]{background:rgba(6,16,42,.75);box-shadow:none;font-size:16px;min-height:44px;left:auto;right:16px;transform:none}
+@media (prefers-reduced-motion:reduce){.sound{transition:none}}
+/* sports bar */
+header.band{position:relative;overflow:hidden;background:#06102a;padding-bottom:clamp(30px,4vw,48px)}
+.skyline{position:absolute;left:0;top:0;width:100%;height:min(620px,100%);z-index:0}
+header.band::after{content:"";position:absolute;inset:0;background:radial-gradient(ellipse 55% 40% at 50% 12%,rgba(255,170,90,.16),transparent 70%),linear-gradient(180deg,transparent 0 58%,rgba(4,8,20,.6) 72%,#050b1c 92%);z-index:0;pointer-events:none}
+header.band>.wrap{position:relative;z-index:1}
+.neon{display:block;width:fit-content;max-width:100%;margin:6px auto 14px;padding:14px clamp(18px,4vw,40px) 10px;border:3px solid #ffd0cc;border-radius:22px;
+ box-shadow:0 0 6px #ff3b2f,0 0 18px #ff3b2f,inset 0 0 10px rgba(255,59,47,.7);background:rgba(10,4,2,.45)}
+h1.glow{text-align:center;color:#eef6ff;margin:0;font-size:clamp(36px,7vw,72px);
+ text-shadow:0 0 3px #fff,0 0 10px #4aa3ff,0 0 22px #2f7dff,0 0 44px #2f7dff}
+.neon-sub{display:block;text-align:center;font:600 15px/1.3 var(--fb);color:#ffd0cc;margin-top:6px;text-shadow:0 0 8px #ff3b2f}
+header .sub.c{text-align:center;margin:0 auto;color:#f3e6dc}
+.counter{height:28px;background:linear-gradient(180deg,#a8683a 0,#7a4523 35%,#5a3018 70%,#3b1f0f 100%);box-shadow:0 6px 14px rgba(0,0,0,.45),inset 0 2px 0 rgba(255,220,180,.35)}
+@keyframes flick{0%,18%,22%,25%,53%,57%,100%{opacity:1}20%,24%,55%{opacity:.35}}
+h1.glow{animation:flick 2.4s 1 .3s}
+@media (prefers-reduced-motion:reduce){h1.glow{animation:none}}
+@keyframes boom{0%{transform:scale(1)}30%{transform:scale(1.08) rotate(-2deg)}60%{transform:scale(.97) rotate(1deg)}100%{transform:scale(1)}}
+.boom{animation:boom .6s}
+@media (prefers-reduced-motion:reduce){.ev{transition:none}.boom{animation:none}}
+</style>
+</head>
+<body>
+<section class="hero" aria-label="Vidéo d'intro">
+ <video id="heroVid" autoplay muted loop playsinline preload="auto" poster="img/intro-poster.jpg">
+  <source src="img/intro.mp4" type="video/mp4">
+ </video>
+ <button id="soundBtn" class="sound" type="button" aria-pressed="false">
+  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4z" fill="currentColor"/><path class="wave" d="M16 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/><path class="mute" d="M16 9l6 6M22 9l-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+  <span data-t="soundOn">Activer le son</span>
+ </button>
+</section>
+<header class="band">
+<svg class="skyline" viewBox="0 0 1600 520" preserveAspectRatio="xMinYMax slice" aria-hidden="true"><defs><linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#040915"/><stop offset=".55" stop-color="#16245a"/><stop offset="1" stop-color="#4a3266"/></linearGradient></defs><rect width="1600" height="520" fill="url(#sky)"/><circle cx="926" cy="221" r="1.3" fill="#fff" opacity="0.5"/><circle cx="925" cy="130" r="1.3" fill="#fff" opacity="0.35"/><circle cx="378" cy="205" r="1.3" fill="#fff" opacity="0.5"/><circle cx="1289" cy="157" r="0.8" fill="#fff" opacity="0.35"/><circle cx="914" cy="77" r="0.8" fill="#fff" opacity="0.35"/><circle cx="1103" cy="207" r="1.3" fill="#fff" opacity="0.7"/><circle cx="85" cy="152" r="1" fill="#fff" opacity="0.5"/><circle cx="1339" cy="189" r="1.3" fill="#fff" opacity="0.7"/><circle cx="322" cy="159" r="0.8" fill="#fff" opacity="0.7"/><circle cx="129" cy="15" r="0.8" fill="#fff" opacity="0.35"/><circle cx="495" cy="153" r="0.8" fill="#fff" opacity="0.5"/><circle cx="668" cy="112" r="1.3" fill="#fff" opacity="0.35"/><circle cx="1063" cy="59" r="1.3" fill="#fff" opacity="0.5"/><circle cx="1023" cy="1" r="1.3" fill="#fff" opacity="0.35"/><circle cx="936" cy="167" r="1" fill="#fff" opacity="0.5"/><circle cx="1128" cy="238" r="0.8" fill="#fff" opacity="0.7"/><circle cx="520" cy="80" r="0.8" fill="#fff" opacity="0.7"/><circle cx="591" cy="7" r="0.8" fill="#fff" opacity="0.7"/><circle cx="1569" cy="27" r="1" fill="#fff" opacity="0.35"/><circle cx="595" cy="98" r="0.8" fill="#fff" opacity="0.35"/><circle cx="1402" cy="0" r="0.8" fill="#fff" opacity="0.35"/><circle cx="107" cy="120" r="1" fill="#fff" opacity="0.7"/><circle cx="813" cy="107" r="0.8" fill="#fff" opacity="0.7"/><circle cx="1289" cy="50" r="1.3" fill="#fff" opacity="0.5"/><circle cx="689" cy="22" r="1" fill="#fff" opacity="0.5"/><circle cx="31" cy="104" r="0.8" fill="#fff" opacity="0.35"/><circle cx="504" cy="180" r="0.8" fill="#fff" opacity="0.35"/><circle cx="122" cy="119" r="1" fill="#fff" opacity="0.35"/><circle cx="1396" cy="143" r="0.8" fill="#fff" opacity="0.5"/><circle cx="1042" cy="48" r="1.3" fill="#fff" opacity="0.35"/><circle cx="858" cy="164" r="1" fill="#fff" opacity="0.35"/><circle cx="808" cy="107" r="0.8" fill="#fff" opacity="0.35"/><circle cx="552" cy="221" r="1.3" fill="#fff" opacity="0.5"/><circle cx="40" cy="53" r="0.8" fill="#fff" opacity="0.5"/><circle cx="1232" cy="164" r="1.3" fill="#fff" opacity="0.35"/><circle cx="86" cy="37" r="0.8" fill="#fff" opacity="0.5"/><circle cx="528" cy="2" r="1.3" fill="#fff" opacity="0.5"/><circle cx="606" cy="98" r="0.8" fill="#fff" opacity="0.35"/><circle cx="184" cy="53" r="1.3" fill="#fff" opacity="0.7"/><circle cx="497" cy="3" r="1.3" fill="#fff" opacity="0.5"/><circle cx="761" cy="159" r="1" fill="#fff" opacity="0.35"/><circle cx="1202" cy="123" r="1.3" fill="#fff" opacity="0.35"/><circle cx="790" cy="46" r="1.3" fill="#fff" opacity="0.35"/><circle cx="636" cy="232" r="0.8" fill="#fff" opacity="0.7"/><circle cx="510" cy="185" r="0.8" fill="#fff" opacity="0.35"/><circle cx="1514" cy="161" r="1.3" fill="#fff" opacity="0.35"/><circle cx="1406" cy="99" r="1" fill="#fff" opacity="0.7"/><circle cx="160" cy="107" r="0.8" fill="#fff" opacity="0.35"/><circle cx="223" cy="9" r="1.3" fill="#fff" opacity="0.5"/><circle cx="488" cy="189" r="1.3" fill="#fff" opacity="0.5"/><circle cx="526" cy="107" r="1.3" fill="#fff" opacity="0.5"/><circle cx="600" cy="133" r="0.8" fill="#fff" opacity="0.7"/><circle cx="140" cy="32" r="0.8" fill="#fff" opacity="0.5"/><circle cx="1145" cy="167" r="1.3" fill="#fff" opacity="0.7"/><circle cx="151" cy="71" r="0.8" fill="#fff" opacity="0.35"/><circle cx="1533" cy="4" r="0.8" fill="#fff" opacity="0.5"/><circle cx="842" cy="114" r="0.8" fill="#fff" opacity="0.35"/><circle cx="95" cy="45" r="1" fill="#fff" opacity="0.5"/><circle cx="1087" cy="146" r="0.8" fill="#fff" opacity="0.35"/><circle cx="741" cy="35" r="1" fill="#fff" opacity="0.5"/><circle cx="1345" cy="187" r="1.3" fill="#fff" opacity="0.7"/><circle cx="1196" cy="35" r="1.3" fill="#fff" opacity="0.35"/><circle cx="36" cy="121" r="1" fill="#fff" opacity="0.7"/><circle cx="638" cy="8" r="0.8" fill="#fff" opacity="0.7"/><circle cx="1302" cy="19" r="1" fill="#fff" opacity="0.35"/><circle cx="1496" cy="79" r="1" fill="#fff" opacity="0.35"/><circle cx="148" cy="19" r="1" fill="#fff" opacity="0.7"/><circle cx="753" cy="188" r="0.8" fill="#fff" opacity="0.7"/><circle cx="1509" cy="180" r="0.8" fill="#fff" opacity="0.5"/><circle cx="720" cy="21" r="1.3" fill="#fff" opacity="0.5"/><circle cx="159" cy="223" r="1" fill="#fff" opacity="0.35"/><circle cx="1023" cy="146" r="0.8" fill="#fff" opacity="0.7"/><circle cx="1356" cy="97" r="1" fill="#fff" opacity="0.7"/><circle cx="25" cy="155" r="0.8" fill="#fff" opacity="0.35"/><circle cx="185" cy="163" r="0.8" fill="#fff" opacity="0.5"/><circle cx="852" cy="186" r="1" fill="#fff" opacity="0.5"/><circle cx="1505" cy="177" r="1.3" fill="#fff" opacity="0.5"/><circle cx="902" cy="118" r="1.3" fill="#fff" opacity="0.35"/><circle cx="1062" cy="192" r="1.3" fill="#fff" opacity="0.35"/><circle cx="635" cy="153" r="0.8" fill="#fff" opacity="0.5"/><g fill="#24366e"><rect x="-20" y="250" width="41" height="270"/><rect x="26" y="258" width="69" height="262"/><rect x="47" y="242" width="28" height="16"/><rect x="59" y="218" width="3" height="24"/><rect x="101" y="234" width="56" height="286"/><rect x="160" y="269" width="46" height="251"/><rect x="210" y="258" width="65" height="262"/><rect x="277" y="349" width="40" height="171"/><rect x="324" y="334" width="66" height="186"/><rect x="392" y="308" width="67" height="212"/><rect x="464" y="337" width="73" height="183"/><rect x="539" y="363" width="53" height="157"/><rect x="597" y="293" width="52" height="227"/><rect x="613" y="277" width="21" height="16"/><rect x="622" y="253" width="3" height="24"/><rect x="651" y="351" width="46" height="169"/><rect x="665" y="335" width="18" height="16"/><rect x="673" y="311" width="3" height="24"/><rect x="700" y="302" width="62" height="218"/><rect x="768" y="328" width="76" height="192"/><rect x="852" y="200" width="62" height="320"/><rect x="871" y="184" width="25" height="16"/><rect x="882" y="160" width="3" height="24"/><rect x="921" y="170" width="55" height="350"/><rect x="938" y="154" width="22" height="16"/><rect x="947" y="130" width="3" height="24"/><rect x="980" y="248" width="48" height="272"/><rect x="1031" y="178" width="70" height="342"/><rect x="1052" y="162" width="28" height="16"/><rect x="1065" y="138" width="3" height="24"/><rect x="1105" y="272" width="74" height="248"/><rect x="1183" y="372" width="57" height="148"/><rect x="1244" y="379" width="73" height="141"/><rect x="1266" y="363" width="29" height="16"/><rect x="1279" y="339" width="3" height="24"/><rect x="1325" y="355" width="67" height="165"/><rect x="1396" y="379" width="52" height="141"/><rect x="1451" y="213" width="40" height="307"/><rect x="1493" y="226" width="46" height="294"/><rect x="1541" y="168" width="65" height="352"/><rect x="1560" y="152" width="26" height="16"/><rect x="1572" y="128" width="3" height="24"/><rect x="1610" y="164" width="50" height="356"/><rect x="1625" y="148" width="20" height="16"/><rect x="1634" y="124" width="3" height="24"/></g><g fill="#ffd98a" opacity=".45"><rect x="-14" y="260" width="5" height="7"/><rect x="-14" y="380" width="5" height="7"/><rect x="-14" y="395" width="5" height="7"/><rect x="-3" y="395" width="5" height="7"/><rect x="-3" y="410" width="5" height="7"/><rect x="65" y="268" width="5" height="7"/><rect x="76" y="298" width="5" height="7"/><rect x="54" y="343" width="5" height="7"/><rect x="32" y="358" width="5" height="7"/><rect x="43" y="433" width="5" height="7"/><rect x="43" y="448" width="5" height="7"/><rect x="65" y="448" width="5" height="7"/><rect x="54" y="493" width="5" height="7"/><rect x="118" y="274" width="5" height="7"/><rect x="129" y="274" width="5" height="7"/><rect x="118" y="289" width="5" height="7"/><rect x="118" y="304" width="5" height="7"/><rect x="129" y="304" width="5" height="7"/><rect x="107" y="364" width="5" height="7"/><rect x="129" y="364" width="5" height="7"/><rect x="129" y="379" width="5" height="7"/><rect x="107" y="394" width="5" height="7"/><rect x="107" y="439" width="5" height="7"/><rect x="140" y="469" width="5" height="7"/><rect x="166" y="279" width="5" height="7"/><rect x="177" y="279" width="5" height="7"/><rect x="177" y="324" width="5" height="7"/><rect x="177" y="384" width="5" height="7"/><rect x="177" y="414" width="5" height="7"/><rect x="177" y="444" width="5" height="7"/><rect x="166" y="459" width="5" height="7"/><rect x="177" y="459" width="5" height="7"/><rect x="188" y="489" width="5" height="7"/><rect x="216" y="268" width="5" height="7"/><rect x="249" y="268" width="5" height="7"/><rect x="260" y="298" width="5" height="7"/><rect x="249" y="313" width="5" height="7"/><rect x="249" y="343" width="5" height="7"/><rect x="238" y="358" width="5" height="7"/><rect x="260" y="373" width="5" height="7"/><rect x="249" y="388" width="5" height="7"/><rect x="227" y="403" width="5" height="7"/><rect x="238" y="403" width="5" height="7"/><rect x="249" y="418" width="5" height="7"/><rect x="227" y="448" width="5" height="7"/><rect x="283" y="374" width="5" height="7"/><rect x="305" y="419" width="5" height="7"/><rect x="283" y="434" width="5" height="7"/><rect x="294" y="464" width="5" height="7"/><rect x="283" y="479" width="5" height="7"/><rect x="305" y="494" width="5" height="7"/><rect x="330" y="359" width="5" height="7"/><rect x="341" y="404" width="5" height="7"/><rect x="352" y="404" width="5" height="7"/><rect x="341" y="419" width="5" height="7"/><rect x="363" y="419" width="5" height="7"/><rect x="374" y="419" width="5" height="7"/><rect x="374" y="449" width="5" height="7"/><rect x="330" y="464" width="5" height="7"/><rect x="352" y="509" width="5" height="7"/><rect x="374" y="509" width="5" height="7"/><rect x="431" y="318" width="5" height="7"/><rect x="442" y="393" width="5" height="7"/><rect x="409" y="408" width="5" height="7"/><rect x="409" y="438" width="5" height="7"/><rect x="409" y="453" width="5" height="7"/><rect x="442" y="453" width="5" height="7"/><rect x="420" y="483" width="5" height="7"/><rect x="442" y="483" width="5" height="7"/><rect x="409" y="498" width="5" height="7"/><rect x="492" y="422" width="5" height="7"/><rect x="514" y="422" width="5" height="7"/><rect x="492" y="437" width="5" height="7"/><rect x="470" y="452" width="5" height="7"/><rect x="481" y="452" width="5" height="7"/><rect x="578" y="388" width="5" height="7"/><rect x="556" y="463" width="5" height="7"/><rect x="556" y="478" width="5" height="7"/><rect x="545" y="493" width="5" height="7"/><rect x="603" y="333" width="5" height="7"/><rect x="625" y="348" width="5" height="7"/><rect x="603" y="378" width="5" height="7"/><rect x="625" y="393" width="5" height="7"/><rect x="636" y="468" width="5" height="7"/><rect x="614" y="483" width="5" height="7"/><rect x="657" y="391" width="5" height="7"/><rect x="668" y="496" width="5" height="7"/><rect x="706" y="342" width="5" height="7"/><rect x="739" y="357" width="5" height="7"/><rect x="706" y="372" width="5" height="7"/><rect x="706" y="402" width="5" height="7"/><rect x="750" y="417" width="5" height="7"/><rect x="706" y="432" width="5" height="7"/><rect x="717" y="462" width="5" height="7"/><rect x="739" y="492" width="5" height="7"/><rect x="785" y="368" width="5" height="7"/><rect x="807" y="383" width="5" height="7"/><rect x="818" y="383" width="5" height="7"/><rect x="796" y="398" width="5" height="7"/><rect x="807" y="413" width="5" height="7"/><rect x="796" y="443" width="5" height="7"/><rect x="818" y="443" width="5" height="7"/><rect x="785" y="458" width="5" height="7"/><rect x="829" y="458" width="5" height="7"/><rect x="829" y="473" width="5" height="7"/><rect x="774" y="488" width="5" height="7"/><rect x="858" y="270" width="5" height="7"/><rect x="902" y="285" width="5" height="7"/><rect x="858" y="315" width="5" height="7"/><rect x="891" y="315" width="5" height="7"/><rect x="858" y="330" width="5" height="7"/><rect x="880" y="330" width="5" height="7"/><rect x="880" y="360" width="5" height="7"/><rect x="902" y="375" width="5" height="7"/><rect x="869" y="390" width="5" height="7"/><rect x="880" y="390" width="5" height="7"/><rect x="880" y="405" width="5" height="7"/><rect x="869" y="435" width="5" height="7"/><rect x="858" y="480" width="5" height="7"/><rect x="858" y="510" width="5" height="7"/><rect x="869" y="510" width="5" height="7"/><rect x="938" y="180" width="5" height="7"/><rect x="960" y="195" width="5" height="7"/><rect x="960" y="225" width="5" height="7"/><rect x="927" y="255" width="5" height="7"/><rect x="960" y="270" width="5" height="7"/><rect x="949" y="300" width="5" height="7"/><rect x="960" y="300" width="5" height="7"/><rect x="938" y="360" width="5" height="7"/><rect x="927" y="375" width="5" height="7"/><rect x="949" y="465" width="5" height="7"/><rect x="949" y="480" width="5" height="7"/><rect x="997" y="258" width="5" height="7"/><rect x="986" y="273" width="5" height="7"/><rect x="997" y="288" width="5" height="7"/><rect x="986" y="303" width="5" height="7"/><rect x="1019" y="303" width="5" height="7"/><rect x="1019" y="318" width="5" height="7"/><rect x="1019" y="378" width="5" height="7"/><rect x="986" y="393" width="5" height="7"/><rect x="1019" y="438" width="5" height="7"/><rect x="1008" y="453" width="5" height="7"/><rect x="997" y="498" width="5" height="7"/><rect x="1081" y="188" width="5" height="7"/><rect x="1048" y="218" width="5" height="7"/><rect x="1059" y="218" width="5" height="7"/><rect x="1037" y="248" width="5" height="7"/><rect x="1070" y="248" width="5" height="7"/><rect x="1081" y="248" width="5" height="7"/><rect x="1048" y="263" width="5" height="7"/><rect x="1059" y="263" width="5" height="7"/><rect x="1037" y="293" width="5" height="7"/><rect x="1059" y="308" width="5" height="7"/><rect x="1037" y="323" width="5" height="7"/><rect x="1037" y="338" width="5" height="7"/><rect x="1048" y="338" width="5" height="7"/><rect x="1092" y="398" width="5" height="7"/><rect x="1070" y="443" width="5" height="7"/><rect x="1037" y="458" width="5" height="7"/><rect x="1048" y="503" width="5" height="7"/><rect x="1155" y="282" width="5" height="7"/><rect x="1111" y="357" width="5" height="7"/><rect x="1166" y="357" width="5" height="7"/><rect x="1133" y="372" width="5" height="7"/><rect x="1155" y="372" width="5" height="7"/><rect x="1133" y="387" width="5" height="7"/><rect x="1155" y="417" width="5" height="7"/><rect x="1155" y="432" width="5" height="7"/><rect x="1111" y="447" width="5" height="7"/><rect x="1144" y="447" width="5" height="7"/><rect x="1144" y="492" width="5" height="7"/><rect x="1200" y="382" width="5" height="7"/><rect x="1200" y="412" width="5" height="7"/><rect x="1200" y="427" width="5" height="7"/><rect x="1222" y="457" width="5" height="7"/><rect x="1294" y="404" width="5" height="7"/><rect x="1283" y="434" width="5" height="7"/><rect x="1250" y="479" width="5" height="7"/><rect x="1305" y="494" width="5" height="7"/><rect x="1353" y="365" width="5" height="7"/><rect x="1342" y="380" width="5" height="7"/><rect x="1364" y="380" width="5" height="7"/><rect x="1342" y="395" width="5" height="7"/><rect x="1353" y="425" width="5" height="7"/><rect x="1342" y="440" width="5" height="7"/><rect x="1331" y="500" width="5" height="7"/><rect x="1402" y="494" width="5" height="7"/><rect x="1468" y="238" width="5" height="7"/><rect x="1468" y="253" width="5" height="7"/><rect x="1457" y="283" width="5" height="7"/><rect x="1468" y="283" width="5" height="7"/><rect x="1457" y="328" width="5" height="7"/><rect x="1479" y="343" width="5" height="7"/><rect x="1468" y="358" width="5" height="7"/><rect x="1457" y="388" width="5" height="7"/><rect x="1468" y="388" width="5" height="7"/><rect x="1479" y="433" width="5" height="7"/><rect x="1468" y="448" width="5" height="7"/><rect x="1499" y="251" width="5" height="7"/><rect x="1499" y="266" width="5" height="7"/><rect x="1499" y="326" width="5" height="7"/><rect x="1510" y="326" width="5" height="7"/><rect x="1521" y="371" width="5" height="7"/><rect x="1499" y="401" width="5" height="7"/><rect x="1499" y="506" width="5" height="7"/><rect x="1580" y="193" width="5" height="7"/><rect x="1547" y="208" width="5" height="7"/><rect x="1547" y="223" width="5" height="7"/><rect x="1569" y="238" width="5" height="7"/><rect x="1547" y="253" width="5" height="7"/><rect x="1580" y="283" width="5" height="7"/><rect x="1591" y="283" width="5" height="7"/><rect x="1580" y="313" width="5" height="7"/><rect x="1558" y="343" width="5" height="7"/><rect x="1580" y="343" width="5" height="7"/><rect x="1580" y="358" width="5" height="7"/><rect x="1569" y="373" width="5" height="7"/><rect x="1580" y="388" width="5" height="7"/><rect x="1547" y="418" width="5" height="7"/><rect x="1580" y="418" width="5" height="7"/><rect x="1591" y="418" width="5" height="7"/><rect x="1580" y="433" width="5" height="7"/><rect x="1591" y="433" width="5" height="7"/><rect x="1580" y="463" width="5" height="7"/><rect x="1558" y="478" width="5" height="7"/><rect x="1547" y="508" width="5" height="7"/><rect x="1616" y="234" width="5" height="7"/><rect x="1627" y="279" width="5" height="7"/><rect x="1616" y="294" width="5" height="7"/><rect x="1627" y="324" width="5" height="7"/><rect x="1649" y="339" width="5" height="7"/><rect x="1627" y="399" width="5" height="7"/><rect x="1638" y="414" width="5" height="7"/><rect x="1616" y="489" width="5" height="7"/></g><g fill="#1a2a5c"><path d="M136 520 L161 150 L179 150 L204 520 Z"/><rect x="140" y="140" width="60" height="16" rx="6"/><ellipse cx="170" cy="158" rx="46" ry="20"/><rect x="140" y="168" width="60" height="10" rx="4"/><rect x="162" y="92" width="16" height="50"/><ellipse cx="170" cy="100" rx="13" ry="7"/><rect x="167" y="8" width="6" height="88"/></g><rect x="130" y="156" width="80" height="4" rx="2" fill="#ffd98a" opacity=".9"/><rect x="158" y="99" width="24" height="2" fill="#ffd98a" opacity=".8"/><circle cx="170" cy="8" r="4" fill="#ff3b2f"><animate attributeName="opacity" values="1;.2;1" dur="2s" repeatCount="indefinite"/></circle><path d="M400 520 L400 455 Q500 385 600 455 L600 520 Z" fill="#152452"/><path d="M406 455 Q500 392 594 455" stroke="#4aa3ff" stroke-width="2.5" fill="none" opacity=".7"/><g fill="#101c42"><rect x="-20" y="323" width="82" height="197"/><rect x="66" y="224" width="83" height="296"/><rect x="153" y="270" width="71" height="250"/><rect x="174" y="254" width="28" height="16"/><rect x="187" y="230" width="3" height="24"/><rect x="231" y="334" width="81" height="186"/><rect x="317" y="377" width="81" height="143"/><rect x="404" y="400" width="95" height="120"/><rect x="432" y="384" width="38" height="16"/><rect x="450" y="360" width="3" height="24"/><rect x="503" y="382" width="87" height="138"/><rect x="597" y="376" width="84" height="144"/><rect x="622" y="360" width="34" height="16"/><rect x="637" y="336" width="3" height="24"/><rect x="688" y="441" width="62" height="79"/><rect x="707" y="425" width="25" height="16"/><rect x="718" y="401" width="3" height="24"/><rect x="755" y="381" width="91" height="139"/><rect x="848" y="300" width="51" height="220"/><rect x="901" y="197" width="77" height="323"/><rect x="982" y="243" width="80" height="277"/><rect x="1065" y="298" width="91" height="222"/><rect x="1159" y="406" width="54" height="114"/><rect x="1175" y="390" width="22" height="16"/><rect x="1185" y="366" width="3" height="24"/><rect x="1216" y="450" width="55" height="70"/><rect x="1273" y="401" width="83" height="119"/><rect x="1358" y="413" width="53" height="107"/><rect x="1374" y="397" width="21" height="16"/><rect x="1383" y="373" width="3" height="24"/><rect x="1415" y="315" width="98" height="205"/><rect x="1444" y="299" width="39" height="16"/><rect x="1462" y="275" width="3" height="24"/><rect x="1519" y="218" width="92" height="302"/><rect x="1547" y="202" width="37" height="16"/><rect x="1563" y="178" width="3" height="24"/><rect x="1613" y="220" width="82" height="300"/><rect x="1638" y="204" width="33" height="16"/><rect x="1652" y="180" width="3" height="24"/></g><g fill="#ffe2a0" opacity=".65"><rect x="19" y="333" width="5" height="7"/><rect x="52" y="333" width="5" height="7"/><rect x="-3" y="348" width="5" height="7"/><rect x="19" y="348" width="5" height="7"/><rect x="-14" y="363" width="5" height="7"/><rect x="8" y="363" width="5" height="7"/><rect x="19" y="363" width="5" height="7"/><rect x="19" y="378" width="5" height="7"/><rect x="41" y="378" width="5" height="7"/><rect x="8" y="393" width="5" height="7"/><rect x="52" y="393" width="5" height="7"/><rect x="30" y="408" width="5" height="7"/><rect x="-14" y="438" width="5" height="7"/><rect x="-14" y="453" width="5" height="7"/><rect x="19" y="453" width="5" height="7"/><rect x="30" y="453" width="5" height="7"/><rect x="-14" y="468" width="5" height="7"/><rect x="-3" y="468" width="5" height="7"/><rect x="-3" y="483" width="5" height="7"/><rect x="8" y="483" width="5" height="7"/><rect x="8" y="498" width="5" height="7"/><rect x="105" y="234" width="5" height="7"/><rect x="116" y="234" width="5" height="7"/><rect x="83" y="249" width="5" height="7"/><rect x="72" y="264" width="5" height="7"/><rect x="94" y="264" width="5" height="7"/><rect x="127" y="264" width="5" height="7"/><rect x="138" y="264" width="5" height="7"/><rect x="83" y="279" width="5" height="7"/><rect x="127" y="279" width="5" height="7"/><rect x="72" y="294" width="5" height="7"/><rect x="94" y="294" width="5" height="7"/><rect x="105" y="294" width="5" height="7"/><rect x="105" y="309" width="5" height="7"/><rect x="72" y="324" width="5" height="7"/><rect x="105" y="324" width="5" height="7"/><rect x="116" y="324" width="5" height="7"/><rect x="72" y="339" width="5" height="7"/><rect x="83" y="339" width="5" height="7"/><rect x="94" y="339" width="5" height="7"/><rect x="138" y="339" width="5" height="7"/><rect x="72" y="354" width="5" height="7"/><rect x="105" y="354" width="5" height="7"/><rect x="138" y="369" width="5" height="7"/><rect x="116" y="384" width="5" height="7"/><rect x="138" y="399" width="5" height="7"/><rect x="83" y="414" width="5" height="7"/><rect x="138" y="414" width="5" height="7"/><rect x="94" y="429" width="5" height="7"/><rect x="94" y="444" width="5" height="7"/><rect x="105" y="444" width="5" height="7"/><rect x="105" y="459" width="5" height="7"/><rect x="72" y="474" width="5" height="7"/><rect x="116" y="474" width="5" height="7"/><rect x="127" y="474" width="5" height="7"/><rect x="72" y="489" width="5" height="7"/><rect x="83" y="504" width="5" height="7"/><rect x="94" y="504" width="5" height="7"/><rect x="192" y="280" width="5" height="7"/><rect x="170" y="295" width="5" height="7"/><rect x="214" y="295" width="5" height="7"/><rect x="181" y="310" width="5" height="7"/><rect x="203" y="325" width="5" height="7"/><rect x="203" y="340" width="5" height="7"/><rect x="214" y="355" width="5" height="7"/><rect x="203" y="400" width="5" height="7"/><rect x="214" y="400" width="5" height="7"/><rect x="192" y="430" width="5" height="7"/><rect x="181" y="445" width="5" height="7"/><rect x="203" y="460" width="5" height="7"/><rect x="159" y="475" width="5" height="7"/><rect x="203" y="475" width="5" height="7"/><rect x="192" y="490" width="5" height="7"/><rect x="214" y="490" width="5" height="7"/><rect x="248" y="344" width="5" height="7"/><rect x="259" y="344" width="5" height="7"/><rect x="281" y="359" width="5" height="7"/><rect x="303" y="389" width="5" height="7"/><rect x="292" y="404" width="5" height="7"/><rect x="259" y="419" width="5" height="7"/><rect x="270" y="419" width="5" height="7"/><rect x="303" y="434" width="5" height="7"/><rect x="281" y="464" width="5" height="7"/><rect x="303" y="464" width="5" height="7"/><rect x="237" y="479" width="5" height="7"/><rect x="281" y="494" width="5" height="7"/><rect x="248" y="509" width="5" height="7"/><rect x="259" y="509" width="5" height="7"/><rect x="303" y="509" width="5" height="7"/><rect x="378" y="387" width="5" height="7"/><rect x="323" y="417" width="5" height="7"/><rect x="334" y="432" width="5" height="7"/><rect x="323" y="447" width="5" height="7"/><rect x="334" y="447" width="5" height="7"/><rect x="345" y="447" width="5" height="7"/><rect x="367" y="447" width="5" height="7"/><rect x="389" y="447" width="5" height="7"/><rect x="334" y="462" width="5" height="7"/><rect x="345" y="462" width="5" height="7"/><rect x="378" y="462" width="5" height="7"/><rect x="334" y="492" width="5" height="7"/><rect x="334" y="507" width="5" height="7"/><rect x="367" y="507" width="5" height="7"/><rect x="487" y="410" width="5" height="7"/><rect x="421" y="425" width="5" height="7"/><rect x="410" y="455" width="5" height="7"/><rect x="421" y="470" width="5" height="7"/><rect x="410" y="485" width="5" height="7"/><rect x="421" y="500" width="5" height="7"/><rect x="509" y="407" width="5" height="7"/><rect x="520" y="407" width="5" height="7"/><rect x="553" y="407" width="5" height="7"/><rect x="564" y="407" width="5" height="7"/><rect x="575" y="407" width="5" height="7"/><rect x="509" y="422" width="5" height="7"/><rect x="564" y="437" width="5" height="7"/><rect x="553" y="467" width="5" height="7"/><rect x="564" y="467" width="5" height="7"/><rect x="520" y="497" width="5" height="7"/><rect x="647" y="401" width="5" height="7"/><rect x="658" y="401" width="5" height="7"/><rect x="603" y="416" width="5" height="7"/><rect x="636" y="416" width="5" height="7"/><rect x="658" y="416" width="5" height="7"/><rect x="614" y="431" width="5" height="7"/><rect x="647" y="431" width="5" height="7"/><rect x="658" y="431" width="5" height="7"/><rect x="669" y="431" width="5" height="7"/><rect x="603" y="446" width="5" height="7"/><rect x="625" y="446" width="5" height="7"/><rect x="614" y="491" width="5" height="7"/><rect x="636" y="506" width="5" height="7"/><rect x="738" y="451" width="5" height="7"/><rect x="738" y="466" width="5" height="7"/><rect x="738" y="496" width="5" height="7"/><rect x="705" y="511" width="5" height="7"/><rect x="794" y="391" width="5" height="7"/><rect x="783" y="406" width="5" height="7"/><rect x="827" y="406" width="5" height="7"/><rect x="761" y="421" width="5" height="7"/><rect x="794" y="421" width="5" height="7"/><rect x="794" y="451" width="5" height="7"/><rect x="805" y="451" width="5" height="7"/><rect x="761" y="481" width="5" height="7"/><rect x="794" y="481" width="5" height="7"/><rect x="805" y="481" width="5" height="7"/><rect x="794" y="496" width="5" height="7"/><rect x="783" y="511" width="5" height="7"/><rect x="816" y="511" width="5" height="7"/><rect x="876" y="310" width="5" height="7"/><rect x="865" y="325" width="5" height="7"/><rect x="887" y="340" width="5" height="7"/><rect x="865" y="355" width="5" height="7"/><rect x="887" y="355" width="5" height="7"/><rect x="854" y="370" width="5" height="7"/><rect x="887" y="385" width="5" height="7"/><rect x="865" y="400" width="5" height="7"/><rect x="876" y="400" width="5" height="7"/><rect x="887" y="400" width="5" height="7"/><rect x="854" y="415" width="5" height="7"/><rect x="887" y="415" width="5" height="7"/><rect x="854" y="430" width="5" height="7"/><rect x="854" y="445" width="5" height="7"/><rect x="865" y="445" width="5" height="7"/><rect x="887" y="445" width="5" height="7"/><rect x="854" y="460" width="5" height="7"/><rect x="865" y="460" width="5" height="7"/><rect x="887" y="460" width="5" height="7"/><rect x="854" y="475" width="5" height="7"/><rect x="887" y="475" width="5" height="7"/><rect x="854" y="505" width="5" height="7"/><rect x="876" y="505" width="5" height="7"/><rect x="940" y="207" width="5" height="7"/><rect x="940" y="222" width="5" height="7"/><rect x="951" y="237" width="5" height="7"/><rect x="929" y="252" width="5" height="7"/><rect x="951" y="282" width="5" height="7"/><rect x="918" y="297" width="5" height="7"/><rect x="940" y="297" width="5" height="7"/><rect x="929" y="312" width="5" height="7"/><rect x="940" y="327" width="5" height="7"/><rect x="962" y="327" width="5" height="7"/><rect x="929" y="342" width="5" height="7"/><rect x="940" y="342" width="5" height="7"/><rect x="951" y="342" width="5" height="7"/><rect x="940" y="357" width="5" height="7"/><rect x="962" y="387" width="5" height="7"/><rect x="929" y="402" width="5" height="7"/><rect x="951" y="402" width="5" height="7"/><rect x="962" y="402" width="5" height="7"/><rect x="918" y="417" width="5" height="7"/><rect x="907" y="432" width="5" height="7"/><rect x="918" y="432" width="5" height="7"/><rect x="929" y="432" width="5" height="7"/><rect x="940" y="447" width="5" height="7"/><rect x="962" y="447" width="5" height="7"/><rect x="918" y="462" width="5" height="7"/><rect x="929" y="462" width="5" height="7"/><rect x="940" y="462" width="5" height="7"/><rect x="962" y="462" width="5" height="7"/><rect x="940" y="477" width="5" height="7"/><rect x="951" y="507" width="5" height="7"/><rect x="988" y="253" width="5" height="7"/><rect x="1043" y="253" width="5" height="7"/><rect x="1010" y="268" width="5" height="7"/><rect x="1043" y="283" width="5" height="7"/><rect x="988" y="298" width="5" height="7"/><rect x="999" y="313" width="5" height="7"/><rect x="1021" y="313" width="5" height="7"/><rect x="1021" y="328" width="5" height="7"/><rect x="1032" y="328" width="5" height="7"/><rect x="1043" y="328" width="5" height="7"/><rect x="988" y="343" width="5" height="7"/><rect x="999" y="343" width="5" height="7"/><rect x="1043" y="343" width="5" height="7"/><rect x="999" y="358" width="5" height="7"/><rect x="1032" y="358" width="5" height="7"/><rect x="999" y="373" width="5" height="7"/><rect x="1032" y="388" width="5" height="7"/><rect x="1043" y="403" width="5" height="7"/><rect x="999" y="418" width="5" height="7"/><rect x="1010" y="418" width="5" height="7"/><rect x="988" y="448" width="5" height="7"/><rect x="1032" y="463" width="5" height="7"/><rect x="1043" y="478" width="5" height="7"/><rect x="988" y="493" width="5" height="7"/><rect x="1032" y="493" width="5" height="7"/><rect x="1082" y="308" width="5" height="7"/><rect x="1071" y="323" width="5" height="7"/><rect x="1104" y="323" width="5" height="7"/><rect x="1071" y="338" width="5" height="7"/><rect x="1115" y="353" width="5" height="7"/><rect x="1126" y="353" width="5" height="7"/><rect x="1137" y="368" width="5" height="7"/><rect x="1104" y="383" width="5" height="7"/><rect x="1126" y="383" width="5" height="7"/><rect x="1082" y="413" width="5" height="7"/><rect x="1126" y="413" width="5" height="7"/><rect x="1082" y="428" width="5" height="7"/><rect x="1115" y="428" width="5" height="7"/><rect x="1104" y="443" width="5" height="7"/><rect x="1126" y="443" width="5" height="7"/><rect x="1137" y="443" width="5" height="7"/><rect x="1082" y="458" width="5" height="7"/><rect x="1093" y="488" width="5" height="7"/><rect x="1104" y="488" width="5" height="7"/><rect x="1115" y="488" width="5" height="7"/><rect x="1082" y="503" width="5" height="7"/><rect x="1176" y="431" width="5" height="7"/><rect x="1176" y="446" width="5" height="7"/><rect x="1187" y="446" width="5" height="7"/><rect x="1198" y="446" width="5" height="7"/><rect x="1187" y="461" width="5" height="7"/><rect x="1187" y="476" width="5" height="7"/><rect x="1176" y="491" width="5" height="7"/><rect x="1176" y="506" width="5" height="7"/><rect x="1187" y="506" width="5" height="7"/><rect x="1198" y="506" width="5" height="7"/><rect x="1222" y="460" width="5" height="7"/><rect x="1255" y="505" width="5" height="7"/><rect x="1345" y="411" width="5" height="7"/><rect x="1290" y="426" width="5" height="7"/><rect x="1312" y="426" width="5" height="7"/><rect x="1279" y="441" width="5" height="7"/><rect x="1323" y="441" width="5" height="7"/><rect x="1279" y="456" width="5" height="7"/><rect x="1312" y="456" width="5" height="7"/><rect x="1334" y="456" width="5" height="7"/><rect x="1279" y="471" width="5" height="7"/><rect x="1290" y="471" width="5" height="7"/><rect x="1323" y="471" width="5" height="7"/><rect x="1290" y="486" width="5" height="7"/><rect x="1290" y="501" width="5" height="7"/><rect x="1323" y="501" width="5" height="7"/><rect x="1375" y="438" width="5" height="7"/><rect x="1386" y="453" width="5" height="7"/><rect x="1397" y="453" width="5" height="7"/><rect x="1375" y="483" width="5" height="7"/><rect x="1397" y="498" width="5" height="7"/><rect x="1465" y="325" width="5" height="7"/><rect x="1476" y="325" width="5" height="7"/><rect x="1498" y="325" width="5" height="7"/><rect x="1465" y="340" width="5" height="7"/><rect x="1454" y="355" width="5" height="7"/><rect x="1432" y="385" width="5" height="7"/><rect x="1443" y="385" width="5" height="7"/><rect x="1421" y="400" width="5" height="7"/><rect x="1498" y="415" width="5" height="7"/><rect x="1443" y="430" width="5" height="7"/><rect x="1498" y="430" width="5" height="7"/><rect x="1443" y="445" width="5" height="7"/><rect x="1487" y="445" width="5" height="7"/><rect x="1421" y="460" width="5" height="7"/><rect x="1476" y="460" width="5" height="7"/><rect x="1465" y="475" width="5" height="7"/><rect x="1443" y="490" width="5" height="7"/><rect x="1454" y="490" width="5" height="7"/><rect x="1465" y="490" width="5" height="7"/><rect x="1454" y="505" width="5" height="7"/><rect x="1536" y="228" width="5" height="7"/><rect x="1558" y="228" width="5" height="7"/><rect x="1569" y="243" width="5" height="7"/><rect x="1525" y="258" width="5" height="7"/><rect x="1536" y="258" width="5" height="7"/><rect x="1569" y="273" width="5" height="7"/><rect x="1536" y="288" width="5" height="7"/><rect x="1580" y="288" width="5" height="7"/><rect x="1591" y="288" width="5" height="7"/><rect x="1602" y="303" width="5" height="7"/><rect x="1591" y="318" width="5" height="7"/><rect x="1525" y="333" width="5" height="7"/><rect x="1547" y="348" width="5" height="7"/><rect x="1525" y="363" width="5" height="7"/><rect x="1558" y="378" width="5" height="7"/><rect x="1547" y="393" width="5" height="7"/><rect x="1580" y="393" width="5" height="7"/><rect x="1558" y="408" width="5" height="7"/><rect x="1591" y="408" width="5" height="7"/><rect x="1591" y="423" width="5" height="7"/><rect x="1602" y="438" width="5" height="7"/><rect x="1525" y="453" width="5" height="7"/><rect x="1580" y="453" width="5" height="7"/><rect x="1536" y="468" width="5" height="7"/><rect x="1602" y="468" width="5" height="7"/><rect x="1547" y="483" width="5" height="7"/><rect x="1580" y="498" width="5" height="7"/><rect x="1602" y="498" width="5" height="7"/><rect x="1641" y="230" width="5" height="7"/><rect x="1663" y="230" width="5" height="7"/><rect x="1641" y="245" width="5" height="7"/><rect x="1663" y="245" width="5" height="7"/><rect x="1630" y="260" width="5" height="7"/><rect x="1630" y="290" width="5" height="7"/><rect x="1641" y="290" width="5" height="7"/><rect x="1619" y="305" width="5" height="7"/><rect x="1630" y="305" width="5" height="7"/><rect x="1641" y="305" width="5" height="7"/><rect x="1641" y="320" width="5" height="7"/><rect x="1652" y="320" width="5" height="7"/><rect x="1663" y="335" width="5" height="7"/><rect x="1674" y="335" width="5" height="7"/><rect x="1630" y="350" width="5" height="7"/><rect x="1630" y="365" width="5" height="7"/><rect x="1685" y="365" width="5" height="7"/><rect x="1641" y="380" width="5" height="7"/><rect x="1663" y="380" width="5" height="7"/><rect x="1619" y="395" width="5" height="7"/><rect x="1641" y="395" width="5" height="7"/><rect x="1685" y="395" width="5" height="7"/><rect x="1630" y="410" width="5" height="7"/><rect x="1641" y="425" width="5" height="7"/><rect x="1641" y="440" width="5" height="7"/><rect x="1685" y="440" width="5" height="7"/><rect x="1641" y="455" width="5" height="7"/><rect x="1652" y="455" width="5" height="7"/><rect x="1641" y="470" width="5" height="7"/><rect x="1674" y="470" width="5" height="7"/><rect x="1685" y="470" width="5" height="7"/><rect x="1619" y="485" width="5" height="7"/><rect x="1630" y="485" width="5" height="7"/><rect x="1674" y="485" width="5" height="7"/><rect x="1619" y="500" width="5" height="7"/><rect x="1630" y="500" width="5" height="7"/><rect x="1685" y="500" width="5" height="7"/></g></svg>
+ <div class="wrap">
+  <div class="topbar"><div class="lang" role="group" aria-label="Langue / Language"><button data-lang="fr">Français</button><button data-lang="en">English</button></div></div>
+  <div class="neon"><h1 class="glow" data-t="title">Le compteur McKenna</h1><span class="neon-sub" data-t="barSub">Sports bar officiel du zéro mise en échec</span></div>
+  <p class="sub c" data-t="intro">Le premier choix au total du repêchage 2026, numéro 92 des Maple Leafs, compte des buts, des passes… et toujours pas une seule mise en échec.</p>
+
+  <div class="sign" id="sign">
+   <div class="stripes"></div>
+   <div class="inner">
+    <div class="side">
+     <figure class="slot photo"><img src="img/mckenna.jpg" alt="Gavin McKenna"></figure>
+    </div>
+
+    <div class="board">
+     <div class="k" data-t="k1">Ce joueur a disputé</div>
+     <div class="led" id="gpLed">26</div>
+     <div class="k" data-t="k2">matchs sans <span class="zero">mise en échec</span></div>
+     <div class="stats">
+      <div class="stat"><b id="hits">0</b><span data-t="sHits">mises en échec</span></div>
+      <div class="stat"><b id="rate">0,00</b><span data-t="sRate">par match</span></div>
+      <div class="stat"><b id="record">26</b><span data-t="sGp">matchs joués</span></div>
+     </div>
+     <div class="clock" id="clock">—</div>
+     <div class="clock"><small id="clockLbl">écoulés depuis la mise au jeu du 29 septembre 2026</small></div>
+    </div>
+
+    <div class="side">
+     <div class="idrow">
+      <div class="slot logo"><img src="img/logo.png" alt="Toronto Maple Leafs"></div>
+      <div class="num">#92<span data-t="pos">Gavin McKenna · ailier gauche</span></div>
+     </div>
+     <div class="top">
+      <div class="toph" data-t="topH">Pendant ce temps, eux…<span>Le plus de mises en échec dans un match, LNH 2026-27</span></div>
+      <ol id="topList"></ol>
+     </div>
+    </div>
+   </div>
+  </div>
+
+  </div>
+ </div>
+</header>
+<div class="counter" aria-hidden="true"></div>
+
+<section class="band" style="padding-top:8px">
+ <div class="wrap">
+  <h2 data-t="betH">Selon vous, là! À quel match va-t-il enfin frapper?</h2>
+  <p class="sub" data-t="betSub">Notre sondage : vote pour le match où McKenna donnera sa première mise en échec.</p>
+  <div class="bets" id="bets"></div>
+  <p id="pollCta" class="status" aria-live="polite"></p>
+ </div>
+</section>
+
+<section class="band" style="padding-top:0">
+ <div class="wrap">
+  <h2 data-t="feedH">Pendant ce temps-là…</h2>
+  <p class="sub" data-t="feedSub">Tout ce qui est arrivé dans le monde depuis le début de la saison, pendant que McKenna, lui, n'a frappé personne.</p>
+  <div class="ctrl"><button id="replay" class="ghost" data-t="replay">Relancer le décompte</button></div>
+  <ol class="feed" id="feed"></ol>
+
+
+  <p class="note" data-t="note"></p>
+ </div>
+</section>
+
+<script>
+{
+const START = Date.UTC(2026, 8, 29, 23, 0, 0); // 29 sept. 2026, 19 h (heure de l'Est)
+const T = {
+ fr:{
+  soundOn:"Activer le son", soundOff:"Couper le son",
+  title:"Le compteur McKenna", barSub:"Sports bar officiel du zéro mise en échec",
+  intro:"Le premier choix au total du repêchage 2026, numéro 92 des Maple Leafs, compte des buts, des passes… et toujours pas une seule mise en échec.",
+  photo:"Ajoute sa photo<small>clique ou glisse une image</small>",
+  k1hit:"Il a enfin frappé! Il lui a fallu", k2hit:'matchs pour sa <span class="zero">première mise en échec</span>', clockLblHit:"sans mise en échec, de la mise au jeu du 29 septembre jusqu'à sa première", at:"à", vs:"vs", inTO:", à Toronto", later:{g:"Plus tard", t:"Après ces 3 matchs", s:"ou jamais…"}, topGp:n=>n+" matchs au total", lastEv:(g,h)=>g+" matchs, "+h+" mise"+(h>1?"s":"")+" en échec. "+(h?"La série est finie.":"Le compteur tourne encore."), hitEv:(o,n)=>"ÇA Y EST! Gavin McKenna donne sa première mise en échec dans la LNH, contre "+o+", à son "+n+"e match.", pollDone:w=>"Sondage terminé : il a frappé"+(w?" — bravo à ceux qui avaient choisi « "+w+" »!":"!"), dfmt:{weekday:"short",day:"numeric",month:"short",hour:"numeric",minute:"2-digit",timeZone:"America/Toronto"},
+  k1:"Ce joueur a disputé", k2:'matchs sans <span class="zero">mise en échec</span>',
+  sHits:"mises en échec", sRate:"par match", sGp:"matchs joués",
+  pos:"Gavin McKenna · ailier gauche",
+  topH:"Pendant ce temps, eux…<span>Le plus de mises en échec dans un match, LNH 2026-27</span>",
+  top0:"DET à EDM · 26 oct.", top1:"NYR vs TB · 13 oct.", top2:"SJ à STL · 8 oct.", top3:"UTA à SEA · 22 oct.", top4:"ANA à CGY · 10 oct.", top5:"NSH vs STL · 17 oct. · égalité avec 4 autres", top6:"26 matchs au total",
+  betH:"Selon vous, là! À quel match va-t-il enfin frapper?",
+  betSub:"Notre sondage : vote pour le match où McKenna donnera sa première mise en échec. Un vote par appareil, tu peux le changer jusqu'à la mise au jeu. Les résultats bougent en direct!", pollTotal:n=>n+" vote"+(n>1?"s":"")+" au total · mis à jour en direct", pollFirst:"Aucun vote pour l'instant. Sois le premier!", pollErr:"Le sondage ne répond pas pour l'instant. Réessaie dans quelques minutes.",
+  feedH:"Pendant ce temps-là…",
+  feedSub:"Tout ce qui est arrivé dans le monde depuis le début de la saison, pendant que McKenna, lui, n'a frappé personne.",
+  replay:"Relancer le décompte", addBtn:"Ajouter au fil",
+  addPh:"Nouvelle à ajouter (ex. : la neige tombe à Mascouche)",
+  note:"Les matchs joués, les mises en échec, le top 6 et les matchs du sondage se mettent à jour automatiquement chaque heure à partir des données de la LNH. Les nouvelles du fil ont été vérifiées le 24 novembre 2026 (NHL.com, CTV, CP24, Noovo Info, Narcity, Daily Hive, Al Jazeera, Global News, Dodger Blue). Heures de l'Est.",
+  units:["j","h","min","s"],
+  clockLbl:"écoulés depuis la mise au jeu du 29 septembre 2026, sans une seule mise en échec",
+  tag:"Mises en échec de McKenna à ce moment : ", del:"Retirer",
+  bets:n=>n+" vote"+(n>1?"s":""), closed:"Vote fermé", mine:"Mon vote ✓", pick:"Je vote pour ce match", someone:"Quelqu'un",
+  st:{saved:"Vote enregistré. Merci!", ro:"Ton vote n'a pas pu être compté (accès en lecture seulement). Il reste noté dans ton navigateur.", local:"Vote noté dans ton navigateur.", off:"Le sondage partagé n'est pas disponible ici; ton vote reste dans ton navigateur.", slow:"Chargement du sondage plus long que prévu…", none:"Aucun vote pour l'instant. Sois le premier!", err:"Impossible de charger les votes pour l'instant."},
+  loc:"fr-CA"
+ },
+ en:{
+  soundOn:"Turn sound on", soundOff:"Mute",
+  title:"The McKenna Counter", barSub:"Official sports bar of zero hits",
+  intro:"The first overall pick of the 2026 draft, number 92 for the Maple Leafs, piles up goals and assists… and still hasn't thrown a single hit.",
+  photo:"Add his photo<small>click or drop an image</small>",
+  k1hit:"He finally hit someone! It took him", k2hit:'games to throw his <span class="zero">first hit</span>', clockLblHit:"without a hit, from puck drop on September 29 until his first one", at:"at", vs:"vs", inTO:", in Toronto", later:{g:"Later", t:"After these 3 games", s:"or never…"}, topGp:n=>n+" games total", lastEv:(g,h)=>g+" games, "+h+" hit"+(h!==1?"s":"")+". "+(h?"The streak is over.":"The counter keeps running."), hitEv:(o,n)=>"IT HAPPENED! Gavin McKenna throws his first NHL hit, against "+o+", in game "+n+".", pollDone:w=>"Poll closed: he hit someone"+(w?" — congrats to everyone who picked \""+w+"\"!":"!"), dfmt:{weekday:"short",day:"numeric",month:"short",hour:"numeric",minute:"2-digit",timeZone:"America/Toronto"},
+  k1:"This player has played", k2:'games without a <span class="zero">hit</span>',
+  sHits:"hits", sRate:"per game", sGp:"games played",
+  pos:"Gavin McKenna · left wing",
+  topH:"Meanwhile, these guys…<span>Most hits in a single game, NHL 2026-27</span>",
+  top0:"DET at EDM · Oct. 26", top1:"NYR vs TB · Oct. 13", top2:"SJ at STL · Oct. 8", top3:"UTA at SEA · Oct. 22", top4:"ANA at CGY · Oct. 10", top5:"NSH vs STL · Oct. 17 · tied with 4 others", top6:"26 games total",
+  betH:"You tell us! Which game will he finally hit someone?",
+  betSub:"Our poll: vote for the game where McKenna throws his first hit. One vote per device; you can change it until puck drop. Results update live!", pollTotal:n=>n+" vote"+(n!==1?"s":"")+" total · updating live", pollFirst:"No votes yet. Be the first!", pollErr:"The poll isn't responding right now. Try again in a few minutes.",
+  feedH:"Meanwhile…",
+  feedSub:"Everything that's happened in the world since the season started, while McKenna hasn't hit anybody.",
+  replay:"Replay the countdown", addBtn:"Add to the feed",
+  addPh:"News to add (e.g. snow falls in Mascouche)",
+  note:"Games played, hits, the top 6 and the poll games update automatically every hour from NHL data. News items in the feed were checked on November 24, 2026 (NHL.com, CTV, CP24, Noovo Info, Narcity, Daily Hive, Al Jazeera, Global News, Dodger Blue). Eastern time.",
+  units:["d","h","min","s"],
+  clockLbl:"since puck drop on September 29, 2026, without a single hit",
+  tag:"McKenna's hits at this point: ", del:"Remove",
+  bets:n=>n+" vote"+(n!==1?"s":""), closed:"Voting closed", mine:"My vote ✓", pick:"I vote for this game", someone:"Someone",
+  st:{saved:"Vote counted. Thanks!", ro:"Your vote couldn't be counted (view-only access). It's kept in your browser.", local:"Vote saved in your browser.", off:"The shared poll isn't available here; your vote stays in your browser.", slow:"Loading the poll is taking longer than expected…", none:"No votes yet. Be the first!", err:"Couldn't load the votes right now."},
+  loc:"en-CA"
+ }
+};
+const BASE = [
+ {d:"2026-09-29", m:1, fr:"Le Canadien gagne 3-2 à Toronto au match d'ouverture. McKenna fait ses débuts dans la LNH… et c'est lui qui encaisse une mise en échec d'Alex Newhook.", en:"The Canadiens win 3-2 in Toronto on opening night. McKenna makes his NHL debut… and he's the one taking a hit, from Alex Newhook."},
+ {d:"2026-10-05", fr:"Le Parti québécois de Paul St-Pierre Plamondon est élu : gouvernement minoritaire avec 59 sièges.", en:"Paul St-Pierre Plamondon's Parti Québécois wins Quebec's election: a minority government with 59 seats."},
+ {d:"2026-10-06", m:1, fr:"Premier but dans la LNH pour McKenna, contre Juuse Saros et les Predators, à son 4e match.", en:"McKenna scores his first NHL goal, against Juuse Saros and the Predators, in his 4th game."},
+ {d:"2026-10-19", fr:"La réserve québécoise de sirop d'érable est à sec.", en:"Quebec's strategic maple syrup reserve runs dry."},
+ {d:"2026-10-19", fr:"Référendum en Alberta : une forte majorité vote pour rester au Canada.", en:"Alberta referendum: a strong majority votes to stay in Canada."},
+ {d:"2026-10-28", fr:"Les Brewers de Milwaukee gagnent la première Série mondiale de leur histoire, en cinq matchs contre les Rays.", en:"The Milwaukee Brewers win the first World Series in franchise history, in five games over the Rays."},
+ {d:"2026-10-28", m:1, fr:"McKenna inscrit 2 buts et 1 passe à Seattle, son meilleur match en carrière. Mises en échec : toujours rien.", en:"McKenna puts up 2 goals and 1 assist in Seattle, the best game of his career. Hits: still nothing."},
+ {d:"2026-11-01", fr:"Kimi Antonelli remporte le championnat du monde de F1 au Grand Prix du Mexique.", en:"Kimi Antonelli clinches the F1 world championship at the Mexico City Grand Prix."},
+ {d:"2026-11-14", m:1, fr:"Après 21 matchs, McKenna mène toutes les recrues de la LNH avec 13 points.", en:"After 21 games, McKenna leads all NHL rookies with 13 points."},
+ {d:"2026-11-15", fr:"Coupe Grey : les Elks d'Edmonton battent les Alouettes 37-30 à Calgary. Ouch.", en:"Grey Cup: the Edmonton Elks beat the Alouettes 37-30 in Calgary. Ouch."}
+];
+let DATA = {"updated": "2026-11-24T17:30:00Z", "mckenna": {"gp": 26, "hits": 0, "firstHit": null, "games": []}, "leaders": {"processed": [], "top": [{"name": "M. Brandsegg-Nygård", "team": "DET", "opp": "EDM", "home": false, "date": "2026-10-26", "hits": 11}, {"name": "W. Cuylle", "team": "NYR", "opp": "TBL", "home": true, "date": "2026-10-13", "hits": 11}, {"name": "K. Sherwood", "team": "SJS", "opp": "STL", "home": false, "date": "2026-10-08", "hits": 10}, {"name": "J. McBain", "team": "UTA", "opp": "SEA", "home": false, "date": "2026-10-22", "hits": 9}, {"name": "T. Washe", "team": "ANA", "opp": "CGY", "home": false, "date": "2026-10-10", "hits": 9}, {"name": "A. Edstrom", "team": "NSH", "opp": "STL", "home": true, "date": "2026-10-17", "hits": 8}]}, "poll": {"id": "nov27-30", "resolved": false, "games": [{"choice": "g1127", "start": "2026-11-27T18:00:00Z", "home": false, "opp": {"abbrev": "BOS", "place": {"fr": "Boston", "en": "Boston"}, "name": {"fr": "Bruins", "en": "Bruins"}}}, {"choice": "g1128", "start": "2026-11-29T00:00:00Z", "home": false, "opp": {"abbrev": "PIT", "place": {"fr": "Pittsburgh", "en": "Pittsburgh"}, "name": {"fr": "Penguins", "en": "Penguins"}}}, {"choice": "g1130", "start": "2026-12-01T00:30:00Z", "home": true, "opp": {"abbrev": "PHI", "place": {"fr": "Philadelphie", "en": "Philadelphia"}, "name": {"fr": "Flyers", "en": "Flyers"}}}]}};
+let GAMES = [];
+const store = {
+ get(k,f){try{const v=localStorage.getItem("mck_"+k);return v===null?f:JSON.parse(v)}catch(e){return f}},
+ set(k,v){try{localStorage.setItem("mck_"+k,JSON.stringify(v))}catch(e){}}
+};
+let lang = location.hash==="#en" ? "en" : location.hash==="#fr" ? "fr" : store.get("lang","fr");
+if(!T[lang]) lang = "fr";
+let gp = 26, hits = 0, streak = 26, extra = [];
+const $ = id => document.getElementById(id);
+const L = () => T[lang];
+const esc = s => String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const num = n => n.toLocaleString(L().loc,{minimumFractionDigits:2,maximumFractionDigits:2});
+const fmtDate = s => new Date(s+"T12:00:00").toLocaleDateString(L().loc,{day:"numeric",month:"long"});
+
+function applyLang(){
+ document.documentElement.lang = lang==="en" ? "en-CA" : "fr-CA";
+ document.title = L().title;
+ document.querySelectorAll("[data-t]").forEach(el=>{ const v = L()[el.dataset.t]; if(typeof v==="string") el.innerHTML = v; });
+ document.querySelectorAll(".lang button").forEach(b=>b.setAttribute("aria-pressed", b.dataset.lang===lang));
+ applyData(); render(); tick(); drawBets(); if(typeof soundUI==="function" && window.__vidReady) soundUI();
+}
+function applyData(){
+ const m = DATA.mckenna || {};
+ gp = m.gp || 0; hits = m.hits || 0;
+ streak = m.firstHit ? (m.firstHit.gameNumber||gp) : gp;
+ const t = L();
+ GAMES = (DATA.poll?.games || []).map(g=>{
+  const d = new Date(g.start), opp = g.opp || {};
+  const mk = l => { const tt = T[l]; let gs = d.toLocaleString(tt.loc, tt.dfmt);
+   const pick = v => typeof v==="string" ? v : (v && (v[l] || v.fr || v.en)) || "";
+   return {g:gs, t:(g.home?tt.vs:tt.at)+" "+(pick(opp.place)||opp.abbrev||""), s:pick(opp.name)+(g.home?tt.inTO:"")}; };
+  return {id:g.choice, start:Date.parse(g.start), fr:mk("fr"), en:mk("en")};
+ });
+ if(GAMES.length) GAMES.push({id:"later", start:null, fr:T.fr.later, en:T.en.later});
+}
+function render(){
+ const t = L(), m = DATA.mckenna || {};
+ document.querySelector('[data-t="k1"]').innerHTML = m.firstHit ? t.k1hit : t.k1;
+ document.querySelector('[data-t="k2"]').innerHTML = m.firstHit ? t.k2hit : t.k2;
+ const rows = (DATA.leaders?.top || []).slice(0,6).map(r=>{
+  const where = r.team+" "+(r.home?t.vs:t.at)+" "+r.opp+" · "+new Date(r.date+"T12:00:00").toLocaleDateString(t.loc,{day:"numeric",month:"short"});
+  return `<li><b>${esc(r.name)}</b><em>${esc(where)}</em><i>${esc(r.hits)}</i></li>`;
+ }).join("");
+ $("topList").innerHTML = rows + `<li class="me"><b>Gavin McKenna</b><em>${esc(t.topGp(gp))}</em><i>${esc(hits)}</i></li>`;
+ $("gpLed").textContent = streak;
+ $("hits").textContent = hits;
+ $("rate").textContent = num(gp ? hits/gp : 0);
+ $("record").textContent = gp;
+}
+function tick(){
+ const fh = DATA.mckenna?.firstHit, END = fh ? Date.parse(fh.date+"T23:00:00Z") : Date.now();
+ let s = Math.max(0, Math.floor((END-START)/1000));
+ const d = Math.floor(s/86400); s%=86400;
+ const h = Math.floor(s/3600); s%=3600;
+ const m = Math.floor(s/60); s%=60;
+ const p = n => String(n).padStart(2,"0"), u = L().units;
+ $("clock").textContent = d+" "+u[0]+" "+p(h)+" "+u[1]+" "+p(m)+" "+u[2]+" "+p(s)+" "+u[3];
+ $("clockLbl").textContent = fh ? L().clockLblHit : L().clockLbl;
+}
+function events(){
+ const t = L(), m = DATA.mckenna || {}, dyn = [];
+ if(m.firstHit) dyn.push({id:"fh", d:m.firstHit.date, m:1, t:t.hitEv(m.firstHit.opp, m.firstHit.gameNumber)});
+ const lastDay = (m.games && m.games.length) ? m.games[m.games.length-1].date : (DATA.updated||"2026-11-24").slice(0,10);
+ dyn.push({id:"now", d:lastDay, m:1, t:t.lastEv(gp,hits)});
+ return BASE.map((e,i)=>({...e,id:"b"+i,t:e[lang]})).concat(dyn).sort((a,b)=>a.d.localeCompare(b.d)||(a.id==="now")-(b.id==="now"));
+}
+const hitsBy = d => (DATA.mckenna?.games||[]).filter(g=>g.date<=d).reduce((a,g)=>a+g.hits,0);
+let timers = [];
+function feed(animate){
+ timers.forEach(clearTimeout); timers = [];
+ $("feed").innerHTML = events().map(e=>`<li class="ev${e.m?" mck":""}">
+   <div class="d">${esc(fmtDate(e.d))}</div>
+   <p>${esc(e.t)}</p>
+   <span class="tag">${esc(L().tag)}${esc(hitsBy(e.d))}</span></li>`).join("");
+ const items = [...document.querySelectorAll(".ev")];
+ const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+ if(animate===false || reduce){ items.forEach(el=>el.classList.add("in")); return; }
+ items.forEach((el,i)=>timers.push(setTimeout(()=>el.classList.add("in"), 350+i*550)));
+}
+$("replay").onclick = () => feed(true);
+document.querySelectorAll(".lang button").forEach(b=>b.addEventListener("click", ()=>{
+ if(b.dataset.lang===lang) return;
+ lang = b.dataset.lang; store.set("lang",lang);
+ try{ history.replaceState(null,"","#"+lang); }catch(e){}
+ applyLang(); feed(false);
+}));
+
+/* ---- Sondage en direct (Supabase) ----
+   Les matchs du sondage viennent de data.json, mis à jour par le robot chaque heure. */
+const SB_URL = "https://dklydafarvlzhravrnvf.supabase.co";
+const SB_KEY = "sb_publishable_4Au3QoA3DTiJ7RWs0mckmA_G_AVobRt";
+let POLL_ID = DATA.poll?.id || "";
+const VALIDS = () => GAMES.map(g=>g.id);
+let counts = {}, myPick = store.get("pick_"+POLL_ID, null), live = null, busy = false;
+function voterId(){
+ let id = store.get("voter", null);
+ if(!id){
+  id = (crypto.randomUUID ? crypto.randomUUID() : "10000000-1000-4000-8000-100000000000".replace(/[018]/g,c=>(c^crypto.getRandomValues(new Uint8Array(1))[0]&15>>c/4).toString(16)));
+  store.set("voter", id);
+ }
+ return id;
+}
+async function rpc(fn, body){
+ const r = await fetch(SB_URL+"/rest/v1/rpc/"+fn, {method:"POST", headers:{"apikey":SB_KEY,"Content-Type":"application/json"}, body:JSON.stringify(body)});
+ if(!r.ok) throw new Error("HTTP "+r.status);
+ const txt = await r.text();
+ return txt ? JSON.parse(txt) : null;
+}
+async function loadResults(){
+ if(!POLL_ID){ drawBets(); return; }
+ try{
+  const rows = await rpc("poll_results", {p_poll:POLL_ID});
+  const next = {};
+  (Array.isArray(rows)?rows:[]).forEach(r=>{ if(VALIDS().includes(r.choice)) next[r.choice] = Number(r.votes)||0; });
+  counts = next; live = true;
+ }catch(e){ live = false; }
+ drawBets();
+}
+function drawBets(){
+ const t = L();
+ const total = VALIDS().reduce((a,id)=>a+(counts[id]||0),0);
+ const top = Math.max(0,...VALIDS().map(id=>counts[id]||0));
+ $("bets").innerHTML = GAMES.map(g=>{
+  const x = g[lang], n = counts[g.id]||0, pct = total ? Math.round(n*100/total) : 0;
+  const shut = DATA.poll?.resolved || (g.start && Date.now() >= g.start), mine = myPick===g.id, lead = n>0 && n===top;
+  return `<div class="bet${mine?" mine":""}${lead?" lead":""}">
+   <div class="g">${x.g}</div><h3>${x.t}</h3><div class="meta">${x.s}</div>
+   <div class="cnt">${t.bets(n)} · ${pct} %</div>
+   <div class="bar"><i style="width:${pct}%"></i></div>
+   <button data-pick="${g.id}" ${shut||busy?"disabled":""}>${shut?t.closed:mine?t.mine:t.pick}</button></div>`;
+ }).join("");
+ if(DATA.poll?.resolved){
+  const fh = DATA.mckenna?.firstHit, w = fh && GAMES.find(g=>g.start && Math.abs(g.start - Date.parse(fh.date+"T23:00:00Z")) < 30*3600e3);
+  $("pollCta").textContent = t.pollDone(w ? w[lang].g : (fh ? "" : ""));
+  return;
+ }
+ $("pollCta").textContent = live===false ? t.pollErr : (total ? t.pollTotal(total) : t.pollFirst);
+}
+$("bets").addEventListener("click", async e=>{
+ const b = e.target.closest("button[data-pick]"); if(!b || busy || DATA.poll?.resolved) return;
+ const pick = b.dataset.pick; if(!VALIDS().includes(pick) || pick===myPick) return;
+ const prev = myPick;
+ // mise à jour immédiate à l'écran
+ if(prev && counts[prev]) counts[prev]--;
+ counts[pick] = (counts[pick]||0)+1; myPick = pick; busy = true; drawBets();
+ try{
+  await rpc("cast_vote", {p_poll:POLL_ID, p_voter:voterId(), p_choice:pick});
+  store.set("pick_"+POLL_ID, pick);
+ }catch(err){
+  myPick = prev; live = false;
+ }
+ busy = false; loadResults();
+});
+/* ---- Vidéo d'intro ---- */
+const vid = $("heroVid"), sb = $("soundBtn");
+function soundUI(){ const on = !vid.muted; sb.setAttribute("aria-pressed", on); sb.querySelector("span").textContent = on ? L().soundOff : L().soundOn; }
+function setSound(on){ vid.muted = !on; if(on){ vid.volume = 1; const p = vid.play(); if(p && p.catch) p.catch(()=>{}); } soundUI(); }
+sb.addEventListener("click", e=>{ e.stopPropagation(); setSound(vid.muted); firstTap = true; });
+let firstTap = false;
+document.addEventListener("pointerdown", e=>{ if(firstTap || e.target.closest("button,a,input")) return; firstTap = true; setSound(true); }, {passive:true});
+if(matchMedia("(prefers-reduced-motion: reduce)").matches){ vid.removeAttribute("autoplay"); vid.pause(); }
+else { const p = vid.play(); if(p && p.catch) p.catch(()=>{}); }
+window.__vidReady = true;
+async function loadData(first){
+ try{
+  const r = await fetch("data.json?t="+Date.now(), {cache:"no-store"});
+  if(!r.ok) throw 0;
+  const d = await r.json();
+  if(!d || !d.mckenna) throw 0;
+  const pollChanged = (d.poll?.id||"") !== POLL_ID;
+  const newer = JSON.stringify(d) !== JSON.stringify(DATA);
+  DATA = d;
+  if(pollChanged){ POLL_ID = d.poll?.id || ""; counts = {}; myPick = store.get("pick_"+POLL_ID, null); }
+  if(newer || first){ applyLang(); feed(false); if(pollChanged) loadResults(); }
+ }catch(e){}
+}
+applyLang(); setInterval(tick,1000); feed(true);
+loadData(true);
+setInterval(()=>{ if(!document.hidden) loadData(false); }, 10*60*1000);
+loadResults();
+setInterval(()=>{ if(!document.hidden) loadResults(); }, 5000);
+document.addEventListener("visibilitychange", ()=>{ if(!document.hidden) loadResults(); });
+}
+</script>
+</body>
+</html>

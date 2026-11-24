@@ -1,0 +1,116 @@
+{
+ "updated": "2026-11-24T17:30:00Z",
+ "mckenna": {
+  "gp": 26,
+  "hits": 0,
+  "firstHit": null,
+  "games": []
+ },
+ "leaders": {
+  "processed": [],
+  "top": [
+   {
+    "name": "M. Brandsegg-Nygård",
+    "team": "DET",
+    "opp": "EDM",
+    "home": false,
+    "date": "2026-10-26",
+    "hits": 11
+   },
+   {
+    "name": "W. Cuylle",
+    "team": "NYR",
+    "opp": "TBL",
+    "home": true,
+    "date": "2026-10-13",
+    "hits": 11
+   },
+   {
+    "name": "K. Sherwood",
+    "team": "SJS",
+    "opp": "STL",
+    "home": false,
+    "date": "2026-10-08",
+    "hits": 10
+   },
+   {
+    "name": "J. McBain",
+    "team": "UTA",
+    "opp": "SEA",
+    "home": false,
+    "date": "2026-10-22",
+    "hits": 9
+   },
+   {
+    "name": "T. Washe",
+    "team": "ANA",
+    "opp": "CGY",
+    "home": false,
+    "date": "2026-10-10",
+    "hits": 9
+   },
+   {
+    "name": "A. Edstrom",
+    "team": "NSH",
+    "opp": "STL",
+    "home": true,
+    "date": "2026-10-17",
+    "hits": 8
+   }
+  ]
+ },
+ "poll": {
+  "id": "nov27-30",
+  "resolved": false,
+  "games": [
+   {
+    "choice": "g1127",
+    "start": "2026-11-27T18:00:00Z",
+    "home": false,
+    "opp": {
+     "abbrev": "BOS",
+     "place": {
+      "fr": "Boston",
+      "en": "Boston"
+     },
+     "name": {
+      "fr": "Bruins",
+      "en": "Bruins"
+     }
+    }
+   },
+   {
+    "choice": "g1128",
+    "start": "2026-11-29T00:00:00Z",
+    "home": false,
+    "opp": {
+     "abbrev": "PIT",
+     "place": {
+      "fr": "Pittsburgh",
+      "en": "Pittsburgh"
+     },
+     "name": {
+      "fr": "Penguins",
+      "en": "Penguins"
+     }
+    }
+   },
+   {
+    "choice": "g1130",
+    "start": "2026-12-01T00:30:00Z",
+    "home": true,
+    "opp": {
+     "abbrev": "PHI",
+     "place": {
+      "fr": "Philadelphie",
+      "en": "Philadelphia"
+     },
+     "name": {
+      "fr": "Flyers",
+      "en": "Flyers"
+     }
+    }
+   }
+  ]
+ }
+}
